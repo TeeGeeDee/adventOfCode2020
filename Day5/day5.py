@@ -47,11 +47,11 @@ def find_my_seat(tickets_full: List[tuple]):
 
     """
     r_counts = Counter([t[0] for t in tickets_full]).most_common()
-    front_row = min([r[0] for r in r_counts if r[1]==8])
-    back_row = max([r[0] for r in r_counts if r[1]==8])
+    full_rows = [r[0] for r in r_counts if r[1]==8]
+    front_row, back_row = min(full_rows), max(full_rows)
     my_row = [rc[0] for rc in r_counts if (rc[1]==7 and front_row<rc[0]<back_row)][0]
-    my_row_taken = [t[1] for t in tickets_full if t[0]==my_row]
-    my_col = [c for c in range(0,8+1) if c not in my_row_taken][0]
+    my_row_taken_cols = [t[1] for t in tickets_full if t[0]==my_row]
+    my_col = [c for c in range(0,8) if c not in my_row_taken_cols][0]
     return my_row, my_col
 
 
