@@ -3,14 +3,14 @@ from typing import List
 from collections import Counter
 
 def parse_ticket(ticket: str):
-    """Turns str representation of ticket (of the form 8 F/B followed by 3 R/L)
+    """Turns str representation of ticket (of the form 7 F/B followed by 3 R/L)
     to tuple of row and column numbers
     
 
     Parameters
     ----------
     ticket : str
-        binary string representation of seat e.g. 'FBFFBFFBRLR'
+        binary string representation of seat e.g. 'FBFFBFBRLR'
 
     Returns
     -------
