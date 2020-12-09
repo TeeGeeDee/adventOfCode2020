@@ -25,7 +25,7 @@ def fix_and_run_code(code: List[str]):
     swap = {'jmp':'nop','nop':'jmp'}
     while not finished:
         action = code[i].partition(' ')[0]
-        if action in action_switch:
+        if action in swap:
             mod_code = code.copy()
             mod_code[i] = mod_code[i].replace(action,swap[action])
             finished,acc = run_code(mod_code)
