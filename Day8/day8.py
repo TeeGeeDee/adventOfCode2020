@@ -7,7 +7,8 @@ def run_code(code: List[str]):
     visited = set()
     while (i not in visited) and (i<len(code)):
         visited.add(i)
-        action,n = code[i][:3],int(code[i][4:])
+        action,_,n = code[i].partition(' ')
+        n = int(n)
         if action == 'acc':
             acc += n
             i += 1
@@ -15,19 +16,18 @@ def run_code(code: List[str]):
             i += n
         elif action == 'nop':
             i += 1
-
         reached_end = i>=len(code)
     return reached_end, acc
 
 def fix_and_run_code(code: List[str]):
     i = 0
     finished = False
-    action_switch = {'jmp':'nop','nop':'jmp'}
+    swap = {'jmp':'nop','nop':'jmp'}
     while not finished:
-        action = code[i][0:3]
+        action = code[i].partition(' ')[0]
         if action in action_switch:
             mod_code = code.copy()
-            mod_code[i] = mod_code[i].replace(action,action_switch[action])
+            mod_code[i] = mod_code[i].replace(action,swap[action])
             finished,acc = run_code(mod_code)
         i += 1
     return acc

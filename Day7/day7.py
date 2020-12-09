@@ -9,19 +9,16 @@ def find_containers(bag_map: dict,colour: str):
 
 def count_bags(bag_map: dict,colour: str):
     this_bag = bag_map[colour]
-    return sum([this_bag[c]*(1+count_bags(bag_map,c)) for c in this_bag])
-    
+    return sum(this_bag[c]*(1+count_bags(bag_map,c)) for c in this_bag)
+
 def rules_to_map(rules: List[str]):
-    rules = [r.replace(' bags.','').replace(' bag.','') for r in rules]
+    rules = [r.replace('bags','bag').replace(' bag.','') for r in rules]
     bag_map = dict()
     for r in rules:
-        container,contains = r.split(' bags contain ')
-        contains = [r.split(' bag, ') for r in contains.split(' bags, ')]
-        contains = list(chain(*contains))
-        if contains==['no other']:
-            contains = []
-        contains = {b[b.find(' ')+1:]:int(b[:b.find(' ')]) for b in contains}
-        bag_map[container] = contains
+        bag,contents = r.split(' bag contain ')
+        contents = contents.split(' bag, ')
+        contents = [b.partition(' ') for b in contents if b != 'no other']
+        bag_map[bag] = {b[2]:int(b[0]) for b in contents}
     return bag_map
 
 
