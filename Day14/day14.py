@@ -48,7 +48,6 @@ def expand(s):
             out += [p1+'0'+p2,p1+'1'+p2]
         return expand(out)
 
-
 def run_code(code: List[str]):
     mem = {}
     for r in code:
@@ -58,6 +57,7 @@ def run_code(code: List[str]):
             mem_pos,val = r[4:].split('] = ')
             mem[mem_pos] = apply_mask(val,mask)
     return sum(int(v,2) for v in mem.values())
+
 
 if __name__ == '__main__':
     
