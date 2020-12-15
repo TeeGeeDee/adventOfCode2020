@@ -8,21 +8,15 @@ TESTS2 = {(0,3,6):175594,(1,3,2):2578,(2,1,3):3544142,(1,2,3):261214,(2,3,1):689
 
 
 def get_nth_in_seq(start: Tuple[int],n: int):
-    last_time_seen = {}
-    current_num = start[0]
-    for ii in range(0,n):
-        if ii<len(start):
-            current_num = start[ii]
-            next_num = start[ii]
-            if ii<len(start)-1:
-                last_time_seen[current_num] = ii
+    last_time_seen = {start[i]:i for i in range(0,len(start)-1)}
+    current_num = start[-1]
+    for ix_prev in range(len(start)-1,n-1):
+        if current_num in last_time_seen:
+            next_num = ix_prev-last_time_seen[current_num]
         else:
-            if current_num in last_time_seen:
-                next_num = ii-1-last_time_seen[current_num]
-            else:
-                next_num = 0
-            last_time_seen[current_num] = ii-1
-            current_num = next_num
+            next_num = 0
+        last_time_seen[current_num] = ix_prev
+        current_num = next_num
     return next_num
 
 
