@@ -1,7 +1,4 @@
 
-
-
-
 if __name__ == '__main__':
     
     with open("data.txt", "r") as f:
@@ -26,5 +23,7 @@ if __name__ == '__main__':
         [allergens_map[aller].discard(rm) for rm in to_rm for aller in allergens_map if len(allergens_map[aller])>1]
         to_rm = tuple(set(list(ing)[0] for ing in allergens_map.values() if len(ing)==1).difference(taken_ingredients))
     
-    if all(len(allergens_map[a])==1 for a in allergens_map):
-        print('Part 1 answer = {0}'.format(sum(len(r[0].difference([list(a)[0] for a in allergens_map.values()])) for r in recipies)))
+    print('Part 1 answer = {0}'.format(sum(len(r[0].difference([list(a)[0] for a in allergens_map.values()])) for r in recipies)))
+    ingredients_map = {list(allergens_map[aller])[0]:aller for aller in allergens_map}
+    print('Part 2 answer = {0}'.format(','.join(sorted(ingredients_map.keys(),key=lambda x: ingredients_map[x]))))
+        
