@@ -1,7 +1,9 @@
 
 from enum import Enum
 
-FLIPMAP = {0:3,3:0,2:1,1:2}
+MONSTER = ('                  # ',
+           '#    ##    ##    ###',
+           ' #  #  #  #  #  #   ')
 
 class Mod(Enum):
     NOTHING = 0
@@ -22,30 +24,68 @@ class Tile:
             mod = Mod(mod)
         self.mod = mod
         self.tile_data = data[ID]
+        self.modified_tile = self.print_tile()
         return
 
-    def get_side(self,ix_side):
+    def get_side(self,side):
         """Read left to right, or top down"""
-        ix_start = ix_side
-        n_rot = self.mod.value % 4
-        ix_side = (ix_side - n_rot) % 4
-        if self.mod.value>3:
-            ix_side = FLIPMAP[ix_side]
-        flip = self.mod.value//4
-        flip = bool((flip + (((ix_start//2)!=(ix_side//2)))) % 2)
+        if side==0:
+            return self.modified_tile[0]
+        if side==1:
+            return ''.join(x[-1] for x in self.modified_tile)
+        if side==2:
+            return self.modified_tile[-1]
+        if side==3:
+            return ''.join(x[0] for x in self.modified_tile)
 
-        if ix_side == 0:
-            side = self.tile_data[0]
-        elif ix_side == 2:
-            side = self.tile_data[-1]
-        elif ix_side == 1:
-            side = ''.join([x[-1] for x in self.tile_data])
-        elif ix_side == 3:
-            side = ''.join([x[0] for x in self.tile_data])
-        if flip:
-            side = side[::-1]
-        return side
+    def print_tile(self):
+        n = len(self.tile_data)
+        if self.mod.value % 4 == 0:
+            start = [0,0]
+            move = (0,1)
+            newline = (1,0)
+        elif self.mod.value % 4 == 1:
+            start = [0,n-1]
+            move = (1,0)
+            newline = (0,-1)
+        elif self.mod.value % 4 == 2:
+            start = [n-1,n-1]
+            move = (0,-1)
+            newline = (-1,0)
+        else:
+            start = [n-1,0]
+            move = (-1,0)
+            newline = (0,1)
+        if self.mod.value>3:
+            move,newline = newline,move
+        out = []
+        while 0<=start[0]<n and 0<=start[1]<n:
+            out.append('')
+            xy = start.copy()
+            while 0<=xy[0]<n and 0<=xy[1]<n:
+                out[-1] += self.tile_data[xy[0]][xy[1]]
+                xy[0] += move[0]
+                xy[1] += move[1]
+            start[0] += newline[0]
+            start[1] += newline[1]
+        return out
     
+def strip_outer_layer(image):
+    return [r[1:-1] for r in image[1:-1]]
+
+def monster_match(image,x,y):
+    is_ok = True
+    ii,jj = 0,0
+    coords_match = set()
+    while is_ok and ii<len(MONSTER) and jj<len(MONSTER[0]):
+        if MONSTER[ii][jj] == '#':
+            is_ok &= image[x+ii][y+jj] == '#'
+            coords_match.add((x+ii,y+jj))
+        jj += 1
+        if jj ==len(MONSTER[0]):
+            jj = 0
+            ii += 1
+    return is_ok,coords_match
 
 def compatabile_opts(tiles):
     compatability_cache = {}
@@ -94,7 +134,7 @@ if __name__ == '__main__':
             jj = 0
             while ii+jj <len(data) and data[jj]!='':
                 jj +=1
-            tiles[data[ii][5:9]] = data[ii+1:ii+jj]
+            tiles[data[ii][5:9]] = tuple(data[ii+1:ii+jj])
             ii += jj
         else:
             ii += 1
@@ -107,5 +147,35 @@ if __name__ == '__main__':
         if out is not None:
             break
     print('Part 1 answer is {0}'.format(int(out[0][0])*int(out[n-1][0])*int(out[n**2-n][0])*int(out[n**2-1][0])))
-        
+    
+    composite = []
+    for ix in range(0,len(out)):
+        tile = Tile(out[ix][0],out[ix][1],tiles)
+        output = strip_outer_layer(tile.modified_tile)
+        if ix % n == 0:
+            composite.append(output)
+        else:
+            for row in range(0,len(composite[-1])):
+                composite[-1][row] += output[row]
+
+    composite = tuple(item for sublist in composite for item in sublist)
+    
+    sightings = 0
+    matches = set()
+    for mod in Mod:
+        tile = Tile('composite',mod,{'composite':composite})
+        image = tile.modified_tile
+        for ii in range(0,len(image)+1-len(MONSTER)):
+            for jj in range(0,len(image[0])+1-len(MONSTER[0])):
+                is_monster,monster_coords = monster_match(image, ii, jj)
+                sightings += is_monster
+                if is_monster:
+                    matches.update(monster_coords)
+        if sightings>0:
+            break
+    
+    num_hash = sum(ch=='#' for row in image for ch in row) - len(matches)
+    
+    print('There are {0} # that are not part of a monster'.format(num_hash))
+                
     
