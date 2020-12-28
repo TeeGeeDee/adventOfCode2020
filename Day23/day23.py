@@ -1,24 +1,17 @@
 
-TEST = '389125467'
 INPUT = '942387615'
-N = 1000000
-N_ITER_PART1 = 100
-N_ITER_PART2 = 10000000
 N_PICK_OUT = 3
 
-def do_moves_part1(str_in,n_moves):
-    x = [int(x) for x in str_in]
-    for i in range(n_moves):
-        current = x[0]
-        pick_up = x.pop(1),x.pop(1),x.pop(1)
-        sorted_x = sorted(x)
-        destination = sorted_x[sorted_x.index(current)-1]
-        ix_new_current = x.index(destination)
-        x = x[:ix_new_current+1]+list(pick_up)+x[ix_new_current+1:]
-        first = x.pop(0)
-        x.append(first)
-    ix1 = x.index(1)
-    return ''.join(str(y) for y in x[ix1+1:]+x[:ix1])
+def play_game(str_in,set_size,n_moves):
+    doubly_linked_list = {}
+    for ix in range(set_size):
+        ix += 1
+        doubly_linked_list[get_num(ix,set_size)] = [get_num(ix-1,set_size),get_num(ix+1,set_size)]
+    
+    current = int(str_in[0])
+    for ii in range(n_moves):
+        current = move(current,doubly_linked_list,set_size)
+    return doubly_linked_list
 
 def mod_end(a,b):
     out = a % b
@@ -26,23 +19,23 @@ def mod_end(a,b):
         out = b
     return out
 
-def get_num(ix):
-    if len(INPUT)+1 <= ix <= N:
+def get_num(ix,set_size):
+    if len(INPUT)+1 <= ix <= set_size:
         return ix
     elif 1 <= ix <= len(INPUT):
         return int(INPUT[ix-1])
     else:
-        return get_num(mod_end(ix,N))
+        return get_num(mod_end(ix,set_size),set_size)
     
-def move(current,d_ll):
+def move(current,d_ll,set_size):
     pick_out = []
     x0 = current
     for ii in range(N_PICK_OUT):
         x0 = d_ll[x0][1]
         pick_out.append(x0)
-    destination = mod_end(current-1,N)
+    destination = mod_end(current-1,set_size)
     while destination in pick_out:
-        destination = mod_end(destination-1,N)
+        destination = mod_end(destination-1,set_size)
     # current to where picked_out pointed to
     d_ll[current][1] = d_ll[pick_out[2]][1]
     d_ll[d_ll[current][1]][0] = current
@@ -53,25 +46,22 @@ def move(current,d_ll):
     d_ll[destination][1] = pick_out[0]
     d_ll[pick_out[0]][0] = destination
 
-    current = d_ll[current][1]
-    return current
+    return d_ll[current][1]
     
 
 if __name__ == '__main__':
     
-    print('Part 1 answer = {0}'.format(do_moves_part1(INPUT,N_ITER_PART1)))
+    d_ll_1 = play_game(INPUT,9,100)
+    out = []
+    current = d_ll_1[1][1]
+    while current != 1:
+        out.append(current)
+        current = d_ll_1[current][1]
+    print('Part 1 answer = {0}'.format(''.join(str(y) for y in out)))
     
-    doubly_linked_list = {}
-    for ix in range(N):
-        ix += 1
-        doubly_linked_list[get_num(ix)] = [get_num(ix-1),get_num(ix+1)]
-
-    current = int(INPUT[0])
-    for ii in range(N_ITER_PART2):
-        current = move(current,doubly_linked_list)
+    d_ll_2 = play_game(INPUT,1000000,10000000)
     
-    x1 = doubly_linked_list[1][1]
-    x2 = doubly_linked_list[x1][1]
-    
+    x1 = d_ll_2[1][1]
+    x2 = d_ll_2[x1][1]
     print('Part 2 answer = {0}'.format(x1*x2))
    
