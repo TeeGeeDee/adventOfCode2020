@@ -22,13 +22,14 @@ class Modifier(Enum):
     def n_rotation(self):
         return self.value % 4
     
-    def get_side_of_modified_image(self,raw_image,side):
+    def get_side_of_modified_image(self,raw_image: List[str],side):
         """Return side of modified image (quicker than making image).
         
         Read left to right, or top down.
         0=top,1=right,2=bottom,3=left
         
         """
+        side = 'urdl'.index(side)
         if self.is_flip():
             side = 3-side
         start = side
@@ -78,102 +79,107 @@ class Modifier(Enum):
             start[0] += newline[0]
             start[1] += newline[1]
         return out
+    
+class TileCache:
+    def __init__(self,tile_input: Tuple[str]):
+        tiles = {}
+        ii = 0
+        while ii<len(tile_input):
+            if tile_input[ii].startswith('Tile '):
+                jj = 0
+                while ii+jj <len(tile_input) and tile_input[jj]!='':
+                    jj += 1
+                tiles[tile_input[ii][5:9]] = tuple(tile_input[ii+1:ii+jj])
+                ii += jj
+            else:
+                ii += 1
+                continue
+        self.tiles = tiles
+        self.n = int(len(tiles)**0.5)
+        self.compile_matches()
+    
+    def compile_matches(self):
+        """Produce dict with key for each (ID, modification and r/d side), with value the set of matching ID,modification pairs"""
+        match_map = {}
+        for ID in self.tiles.keys():
+            for mod in Modifier:
+                side_r = mod.get_side_of_modified_image(self.tiles[ID],'r')
+                side_d = mod.get_side_of_modified_image(self.tiles[ID],'d')
+                match_map[(ID,mod)] = {'r':set(),'d':set()}
+                for ID2 in set(self.tiles.keys()).difference([ID]):
+                    for mod2 in Modifier:
+                        if side_r == mod2.get_side_of_modified_image(self.tiles[ID2],'l'):
+                            match_map[(ID,mod)]['r'].add((ID2,mod2))
+                        if side_d == mod2.get_side_of_modified_image(self.tiles[ID2],'u'):
+                            match_map[(ID,mod)]['d'].add((ID2,mod2))
+        self.match_map = match_map
+    
+    def stitch_tiles(self,so_far: Tuple[Tuple]):
+        """Recursive greedy function for composing tiles that match on right/bottom of existing"""
+        matches = set(t for t in self.match_map if t[0] not in set(x[0] for x in so_far))
+        if len(so_far) > self.n-1:
+            matches.intersection_update(self.match_map[so_far[-self.n]]['d'])
+        if len(so_far) % self.n > 0:
+            matches.intersection_update(self.match_map[so_far[-1]]['r'])
+        out = None
+        for next_tile in matches:
+            next_try = so_far+(next_tile,)
+            if len(next_try)==self.n**2:
+                return next_try
+            out = self.stitch_tiles(next_try)
+            if out is not None:
+                break
+        return out
+    
+    def print_arrangement(self,arrangement: Tuple[Tuple]):
+        composite = []
+        for ix in range(len(arrangement)):
+            image = arrangement[ix][1].modify(self.tiles[arrangement[ix][0]])
+            image = [r[1:-1] for r in image[1:-1]]
+            if ix % self.n == 0:
+                composite.append(image)
+            else:
+                for row in range(len(composite[-1])):
+                    composite[-1][row] += image[row]
+        return tuple(item for sublist in composite for item in sublist)
+        
 
-
-def match_map_right_down(tiles: dict):
-    """Produce dict with key for each ID, modification and r/d side, with value the set of matching ID,modification pairs"""
-    match_map = {}
-    for ID in tiles.keys():
-        for mod in Modifier:
-            match_map[(ID,mod,'r')] = set()
-            match_map[(ID,mod,'d')] = set()
-            for ID2 in set(tiles.keys()).difference([ID]):
-                for mod2 in Modifier:
-                    if mod.get_side_of_modified_image(tiles[ID],1) == mod2.get_side_of_modified_image(tiles[ID2],3):
-                        match_map[(ID,mod,'r')].add((ID2,mod2))
-                    if mod.get_side_of_modified_image(tiles[ID],2) == mod2.get_side_of_modified_image(tiles[ID2],0):
-                        match_map[(ID,mod,'d')].add((ID2,mod2))
-    return match_map
-
-def greedy_compose(so_far: List[Tuple],match_map: dict,n: int):
-    """Recursive greedy function for composing tiles that match on right/bottom of existing"""
-    if len(so_far)>(n-1) and len(so_far) % n > 0:
-        poss = match_map[so_far[-n]+tuple(['d'])].intersection(match_map[so_far[-1]+tuple(['r'])])
-    elif len(so_far) % n > 0:
-        poss = match_map[so_far[-1]+tuple(['r'])]
-    elif len(so_far)>(n-1):
-        poss = match_map[so_far[-n]+tuple(['d'])]
-    poss = [p for p in poss if p[0] not in set(x[0] for x in so_far)]
-    out = None
-    for next_tile in poss:
-        if len(so_far)==n**2-1:
-            return so_far+tuple([next_tile])
-        out = greedy_compose(so_far+tuple([next_tile]),match_map,n)
-        if out is not None:
-            break
-    return out
-
-def monster_match(image: List[str],x: int,y: int):
+def find_monsters(image: List[str]):
     """Search for monster in image, in panel starting (x,y).  Return coordinates if there"""
-    is_ok = True
-    ii,jj = 0,0
-    coords_match = set()
-    while is_ok and ii<len(MONSTER) and jj<len(MONSTER[0]):
-        if MONSTER[ii][jj] == '#':
-            is_ok &= image[x+ii][y+jj] == '#'
-            coords_match.add((x+ii,y+jj))
-        jj += 1
-        if jj ==len(MONSTER[0]):
-            jj = 0
-            ii += 1
-    if not is_ok:
-        coords_match = set()
-    return coords_match
+    monster_pixels = set()
+    for x in range(len(image)+1-len(MONSTER)):
+        for y in range(len(image[0])+1-len(MONSTER[0])):
+            is_ok = True
+            ii,jj = 0,0
+            coords_match = set()
+            while is_ok and ii<len(MONSTER) and jj<len(MONSTER[0]):
+                if MONSTER[ii][jj] == '#':
+                    is_ok &= image[x+ii][y+jj] == '#'
+                    coords_match.add((x+ii,y+jj))
+                jj += 1
+                if jj ==len(MONSTER[0]):
+                    jj = 0
+                    ii += 1
+            if is_ok:
+                monster_pixels.update(coords_match)
+    return monster_pixels
+
 
 if __name__ == '__main__':
     
     with open("data.txt", "r") as f:
-        data = [c.rstrip('\n') for c in f.readlines()]
-        
-    tiles = {}
-    ii = 0
-    while ii<len(data):
-        if data[ii].startswith('Tile '):
-            jj = 0
-            while ii+jj <len(data) and data[jj]!='':
-                jj +=1
-            tiles[data[ii][5:9]] = tuple(data[ii+1:ii+jj])
-            ii += jj
-        else:
-            ii += 1
-            continue
+        data = tuple(c.rstrip('\n') for c in f.readlines())
     
-    n = int(len(tiles)**0.5)
-    compat_cache = match_map_right_down(tiles)
-    for kk in set(x[0:2] for x in compat_cache):
-        tile_orientation = greedy_compose(tuple([kk[0:2]]),compat_cache,n)
-        if tile_orientation is not None:
-            break
-    print('Part 1 answer is {0}'.format(int(tile_orientation[0][0])*int(tile_orientation[n-1][0])*int(tile_orientation[n**2-n][0])*int(tile_orientation[n**2-1][0])))
+    tile_cache = TileCache(data)
+    arrangement = tile_cache.stitch_tiles(())
     
-    composite = []
-    for ix in range(len(tile_orientation)):
-        image = tile_orientation[ix][1].modify(tiles[tile_orientation[ix][0]])
-        image = [r[1:-1] for r in image[1:-1]]
-        if ix % n == 0:
-            composite.append(image)
-        else:
-            for row in range(len(composite[-1])):
-                composite[-1][row] += image[row]
-
-    composite = tuple(item for sublist in composite for item in sublist)
+    print('Part 1 answer is {0}'.format(int(arrangement[0][0])*int(arrangement[tile_cache.n-1][0])*
+                                        int(arrangement[tile_cache.n**2-tile_cache.n][0])*int(arrangement[tile_cache.n**2-1][0])))
     
-    monster_pixels = set()
+    composite = tile_cache.print_arrangement(arrangement)
     for mod in Modifier:
         image = mod.modify(composite)
-        for ii in range(len(image)+1-len(MONSTER)):
-            for jj in range(len(image[0])+1-len(MONSTER[0])):
-                monster_pixels.update(monster_match(image, ii, jj))
+        monster_pixels = find_monsters(image)
         if len(monster_pixels)>0:
             break
         
