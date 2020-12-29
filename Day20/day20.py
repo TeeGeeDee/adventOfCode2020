@@ -101,22 +101,21 @@ class TileCache:
     def compile_matches(self):
         """Produce dict with key for each (ID, modification and r/d side), with value the set of matching ID,modification pairs"""
         all_sides = {(ID,mod,side): mod.get_side_of_modified_image(self.tiles[ID],side)
-                     for ID in self.tiles.keys()
+                     for ID in self.tiles
                      for mod in Modifier
                      for side in 'urdl'}
-        match_map = {}
-        for ID in self.tiles.keys():
-            for mod in Modifier:
-                side_r = all_sides[(ID,mod,'r')]
-                side_d = all_sides[(ID,mod,'d')]
-                match_map[(ID,mod)] = {'r':set(),'d':set()}
-                for ID2 in set(self.tiles.keys()).difference([ID]):
-                    for mod2 in Modifier:
-                        if side_r == all_sides[(ID2,mod2,'l')]:
-                            match_map[(ID,mod)]['r'].add((ID2,mod2))
-                        if side_d == all_sides[(ID2,mod2,'u')]:
-                            match_map[(ID,mod)]['d'].add((ID2,mod2))
-        self.match_map = match_map
+        self.match_map = {(ID,mod):{'r':set((ID2,mod2)
+                                      for ID2 in self.tiles
+                                      for mod2 in Modifier
+                                      if all_sides[(ID,mod,'r')]==all_sides[(ID2,mod2,'l')]),
+                                   'd':set((ID2,mod2)
+                                      for ID2 in self.tiles
+                                      for mod2 in Modifier
+                                      if all_sides[(ID,mod,'d')]==all_sides[(ID2,mod2,'u')])
+                                   }
+                         for ID in self.tiles
+                         for mod in Modifier}
+
     
     def stitch_tiles(self,so_far: Tuple[Tuple]):
         """Recursive greedy function for composing tiles that match on right/bottom of existing"""
